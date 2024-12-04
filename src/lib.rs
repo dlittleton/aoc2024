@@ -1,4 +1,5 @@
 pub mod input;
+pub mod sample;
 
 use std::{fs, path::PathBuf};
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use aoc2024::input::get_all_numbers;
+use aoc2024::{input::get_all_numbers, sample};
 
 fn main() {
     aoc2024::run(part1, Some(part2));
@@ -51,30 +51,14 @@ fn part2(input: &str) -> String {
     format!("{}", total)
 }
 
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    const SAMPLE: &str = r"
+sample! {
+    r"
 3   4
 4   3
 2   5
 1   3
 3   9
-3   3";
-
-    #[test]
-    fn test_part1() {
-        let contents = SAMPLE.trim_start();
-        let result = part1(contents);
-        assert_eq!("11", result);
-    }
-
-    #[test]
-    fn test_part2() {
-        let contents = SAMPLE.trim_start();
-        let result = part2(contents);
-        assert_eq!("31", result);
-    }
+3   3",
+    part1 = "11",
+    part2 = "31"
 }
