@@ -51,11 +51,7 @@ fn part1(input: &str) -> String {
 }
 
 fn is_mas(a: char, b: char) -> bool {
-    match (a, b) {
-        ('M', 'S') => true,
-        ('S', 'M') => true,
-        _ => false,
-    }
+    matches!((a, b), ('M', 'S') | ('S', 'M'))
 }
 
 fn part2(input: &str) -> String {
