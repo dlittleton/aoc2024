@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use tracing::debug;
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 lazy_static! {
@@ -50,6 +50,38 @@ fn part1(input: &str) -> String {
     total.to_string()
 }
 
+fn is_mas(a: char, b: char) -> bool {
+    match (a, b) {
+        ('M', 'S') => true,
+        ('S', 'M') => true,
+        _ => false,
+    }
+}
+
+fn part2(input: &str) -> String {
+    let chars: Grid<char> = input.split('\n').map(|s| s.chars()).collect();
+
+    let mut total = 0;
+    for (r, c, v) in chars.enumerate() {
+        debug!("Checking letter {} at {}, {}", v, r, c);
+        // Must not be on the edge and must be an A
+        if *v != 'A' || r == 0 || r + 1 == chars.rows() || c == 0 || c + 1 == chars.cols() {
+            continue;
+        }
+
+        let lu = *chars.get(r - 1, c - 1);
+        let rd = *chars.get(r + 1, c + 1);
+        let ld = *chars.get(r + 1, c - 1);
+        let ru = *chars.get(r - 1, c + 1);
+
+        if is_mas(lu, rd) && is_mas(ld, ru) {
+            total += 1;
+        }
+    }
+
+    total.to_string()
+}
+
 sample! {
     r"
 MMMSXXMASM
@@ -62,5 +94,6 @@ SMSMSASXSS
 SAXAMASAAA
 MAMMMXMMMM
 MXMXAXMASX",
-    part1 = "18"
+    part1 = "18",
+    part2 = "9"
 }
