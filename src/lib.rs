@@ -1,3 +1,4 @@
+pub mod collections;
 pub mod input;
 pub mod sample;
 
