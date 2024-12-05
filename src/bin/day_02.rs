@@ -9,7 +9,7 @@ fn check_diffs(diffs: &[i32]) -> bool {
     let sign = diffs[0].signum();
 
     diffs
-        .into_iter()
+        .iter()
         .all(|d| d.signum() == sign && d.abs() >= 1 && d.abs() <= 3)
 }
 
@@ -27,8 +27,8 @@ fn is_safe(levels: &[i32]) -> bool {
 fn part1(input: &str) -> String {
     let count = input
         .split('\n')
-        .map(|s| get_all_numbers::<i32>(s))
-        .filter(|v| is_safe(&v))
+        .map(get_all_numbers::<i32>)
+        .filter(|v| is_safe(v))
         .count();
 
     count.to_string()
@@ -41,16 +41,16 @@ fn is_safe2(levels: &[i32]) -> bool {
         let mut diff = Vec::new();
         let mut last = None;
 
-        for i in 0..levels.len() {
+        for (i, v) in levels.iter().enumerate() {
             if i == skip {
                 continue;
             }
 
             if let Some(x) = last {
-                diff.push(levels[i] - x)
+                diff.push(v - x)
             }
 
-            last = Some(levels[i]);
+            last = Some(v);
         }
         diffs.push(diff);
     }
@@ -61,8 +61,8 @@ fn is_safe2(levels: &[i32]) -> bool {
 fn part2(input: &str) -> String {
     let count = input
         .split('\n')
-        .map(|s| get_all_numbers::<i32>(s))
-        .filter(|v| is_safe2(&v))
+        .map(get_all_numbers::<i32>)
+        .filter(|v| is_safe2(v))
         .count();
 
     count.to_string()
