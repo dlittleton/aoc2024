@@ -10,7 +10,7 @@ macro_rules! sample {
 
             paste::item! {
                 $(
-                    #[test]
+                    #[test_log::test]
                     fn [<test_ $p1>]() {
                         let contents = SAMPLE.trim();
                         let result = $p1(contents);
