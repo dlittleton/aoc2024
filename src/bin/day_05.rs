@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use aoc2024::{input::get_all_numbers, sample};
-use tracing::{debug, info};
+use tracing::debug;
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 type RuleMap = HashMap<i32, HashSet<i32>>;
@@ -37,6 +37,10 @@ fn is_valid(rules: &RuleMap, pages: &[i32]) -> bool {
     true
 }
 
+fn get_middle(pages: &[i32]) -> i32 {
+    *pages.get(pages.len() / 2).unwrap()
+}
+
 fn part1(input: &str) -> String {
     let mut lines = input.split('\n');
 
@@ -47,10 +51,57 @@ fn part1(input: &str) -> String {
         .by_ref()
         .map(get_all_numbers::<i32>)
         .filter(|pages| is_valid(&rules, pages))
-        .map(|pages| {
-            info!("{:?} is valid", pages);
-            *pages.get(pages.len() / 2).unwrap()
-        })
+        .map(|pages| get_middle(&pages))
+        .sum();
+
+    total.to_string()
+}
+
+fn find_valid_order(rules: &RuleMap, pages: &[i32]) -> Vec<i32> {
+    let mut page_rules = RuleMap::new();
+    let page_set: HashSet<i32> = HashSet::from_iter(pages.iter().copied());
+
+    for p in pages {
+        page_rules.insert(
+            *p,
+            match rules.get(p) {
+                Some(r) => HashSet::<i32>::from_iter(r.intersection(&page_set).copied()),
+                None => HashSet::new(),
+            },
+        );
+    }
+
+    let mut result = Vec::new();
+
+    while !page_rules.is_empty() {
+        let clear = *page_rules
+            .iter()
+            .filter_map(|(k, v)| if v.is_empty() { Some(k) } else { None })
+            .next()
+            .expect("Failed to find next choice");
+
+        result.push(clear);
+        page_rules.remove(&clear);
+        page_rules.values_mut().for_each(|r| {
+            r.remove(&clear);
+        });
+    }
+
+    result
+}
+
+fn part2(input: &str) -> String {
+    let mut lines = input.split('\n');
+
+    let rules = parse_rules(lines.by_ref());
+    debug!("{:?}", rules);
+
+    let total: i32 = lines
+        .by_ref()
+        .map(get_all_numbers::<i32>)
+        .filter(|pages| !is_valid(&rules, pages))
+        .map(|pages| find_valid_order(&rules, &pages))
+        .map(|pages| get_middle(&pages))
         .sum();
 
     total.to_string()
@@ -86,5 +137,6 @@ sample! {
 75,97,47,61,53
 61,13,29
 97,13,75,29,47",
-    part1 = "143"
+    part1 = "143",
+    part2 = "123"
 }
