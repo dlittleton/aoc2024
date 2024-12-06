@@ -76,8 +76,7 @@ fn find_valid_order(rules: &RuleMap, pages: &[i32]) -> Vec<i32> {
     while !page_rules.is_empty() {
         let clear = *page_rules
             .iter()
-            .filter_map(|(k, v)| if v.is_empty() { Some(k) } else { None })
-            .next()
+            .find_map(|(k, v)| if v.is_empty() { Some(k) } else { None })
             .expect("Failed to find next choice");
 
         result.push(clear);
