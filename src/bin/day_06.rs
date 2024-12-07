@@ -3,9 +3,10 @@ use std::collections::HashSet;
 use aoc2024::{collections::grid::Grid, sample};
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 struct Position {
     row: usize,
     col: usize,
@@ -79,6 +80,42 @@ fn part1(input: &str) -> String {
     seen.len().to_string()
 }
 
+fn is_loop(grid: &Grid<char>, start: &Position, row: usize, col: usize) -> bool {
+    // Can't replace a non-empty tile
+    if *grid.get(row, col) != '.' {
+        return false;
+    }
+
+    let mut grid = grid.clone();
+    *grid.get_mut(row, col) = '#';
+
+    let mut seen = HashSet::new();
+
+    let mut position = Some(*start);
+    while let Some(pos) = position {
+        if seen.contains(&pos) {
+            return true;
+        }
+        seen.insert(pos);
+        position = advance(&grid, &pos);
+    }
+
+    false
+}
+
+fn part2(input: &str) -> String {
+    let grid: Grid<char> = input.split('\n').map(|s| s.chars()).collect();
+
+    let start = find_start(&grid);
+
+    let count = grid
+        .enumerate()
+        .filter(|(r, c, _)| is_loop(&grid, &start, *r, *c))
+        .count();
+
+    count.to_string()
+}
+
 sample! {
     r"
 ....#.....
@@ -91,5 +128,6 @@ sample! {
 ........#.
 #.........
 ......#...",
-    part1 = "41"
+    part1 = "41",
+    part2 = "6"
 }
