@@ -4,10 +4,10 @@ use aoc2024::{collections::grid::Grid, sample};
 use tracing::info;
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 struct Position {
     r: i32,
     c: i32,
@@ -41,6 +41,13 @@ impl Antennas {
         self.positions.keys().copied()
     }
 
+    fn is_valid_position(&self, pos: &Position) -> bool {
+        pos.r >= 0
+            && pos.r < self.grid.rows() as i32
+            && pos.c >= 0
+            && pos.c < self.grid.cols() as i32
+    }
+
     fn get_anti_nodes(&self, signal: char) -> Vec<Position> {
         let mut result = Vec::new();
 
@@ -68,12 +75,41 @@ impl Antennas {
             }
         }
 
-        result.retain(|pos| {
-            pos.r >= 0
-                && pos.r < self.grid.rows() as i32
-                && pos.c >= 0
-                && pos.c < self.grid.cols() as i32
-        });
+        result.retain(|pos| self.is_valid_position(pos));
+
+        result
+    }
+
+    fn get_all_linear_anti_nodes(&self, signal: char) -> Vec<Position> {
+        let mut result = Vec::new();
+
+        let antenna_positions = self.positions.get(&signal).expect("Unknown signal");
+
+        for (i, p1) in antenna_positions.iter().enumerate() {
+            for p2 in antenna_positions[i + 1..].iter() {
+                info!(
+                    "Calculating Antinodes for signal {}, Positions ({} {}) ({} {})",
+                    signal, p1.r, p1.c, p2.r, p2.c
+                );
+
+                let dr = p2.r - p1.r;
+                let dc = p2.c - p1.c;
+
+                let mut pos = *p2;
+                while self.is_valid_position(&pos) {
+                    result.push(pos);
+                    pos.r += dr;
+                    pos.c += dc;
+                }
+
+                pos = *p1;
+                while self.is_valid_position(&pos) {
+                    result.push(pos);
+                    pos.r -= dr;
+                    pos.c -= dc;
+                }
+            }
+        }
 
         result
     }
@@ -85,6 +121,17 @@ fn part1(input: &str) -> String {
     let antinodes: HashSet<Position> = antennas
         .signals()
         .flat_map(|c| antennas.get_anti_nodes(c))
+        .collect();
+
+    antinodes.len().to_string()
+}
+
+fn part2(input: &str) -> String {
+    let antennas = Antennas::parse(input);
+
+    let antinodes: HashSet<Position> = antennas
+        .signals()
+        .flat_map(|c| antennas.get_all_linear_anti_nodes(c))
         .collect();
 
     antinodes.len().to_string()
@@ -104,5 +151,6 @@ sample! {
 .........A..
 ............
 ............",
-    part1 = "14"
+    part1 = "14",
+    part2 = "34"
 }
