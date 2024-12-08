@@ -22,3 +22,10 @@ sample! {
     part1 = ""
 }
 ```
+
+## Logging
+
+To enable logging while running, pass the `-v` flag. Multiple occurences will
+increase log level.
+
+To enable logging during tests, set the RUST_LOG environment variable.
