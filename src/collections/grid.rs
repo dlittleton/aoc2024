@@ -1,13 +1,25 @@
+use lazy_static::lazy_static;
+
 #[derive(Debug, Clone)]
 pub struct Grid<T> {
     values: Vec<Vec<T>>,
 }
 
+#[derive(Clone, Copy)]
 pub enum Direction {
     North,
     East,
     South,
     West,
+}
+
+lazy_static! {
+    pub static ref CARDINAL_DIRECTIONS: Vec<Direction> = vec![
+        Direction::North,
+        Direction::East,
+        Direction::South,
+        Direction::West
+    ];
 }
 
 fn get_direction_delta(dir: Direction) -> (isize, isize) {
