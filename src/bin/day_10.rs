@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use aoc2024::{
     collections::grid::{Grid, Position, CARDINAL_DIRECTIONS},
@@ -6,7 +6,7 @@ use aoc2024::{
 };
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 struct TrailMap {
@@ -23,25 +23,25 @@ impl TrailMap {
         Self { grid }
     }
 
-    fn score_trailheads(&self) -> usize {
+    fn score_trailheads(&self) -> Vec<HashMap<(usize, usize), usize>> {
         self.grid
             .enumerate()
             .filter_map(|(r, c, v)| match v {
                 0 => {
-                    let mut peaks = HashSet::new();
+                    let mut peaks = HashMap::new();
                     let pos = self.grid.position(r, c).unwrap();
 
                     Self::find_peaks(&pos, &mut peaks);
-                    Some(peaks.len())
+                    Some(peaks)
                 }
                 _ => None,
             })
-            .sum()
+            .collect()
     }
 
-    fn find_peaks(pos: &Position<i32>, peaks: &mut HashSet<(usize, usize)>) {
+    fn find_peaks(pos: &Position<i32>, peaks: &mut HashMap<(usize, usize), usize>) {
         if *pos.value() == 9 {
-            peaks.insert((pos.row(), pos.col()));
+            *peaks.entry((pos.row(), pos.col())).or_default() += 1;
             return;
         }
 
@@ -57,7 +57,24 @@ impl TrailMap {
 
 fn part1(input: &str) -> String {
     let map = TrailMap::parse(input);
-    map.score_trailheads().to_string()
+    let total: usize = map
+        .score_trailheads()
+        .iter()
+        .map(|scores| scores.len())
+        .sum();
+
+    total.to_string()
+}
+
+fn part2(input: &str) -> String {
+    let map = TrailMap::parse(input);
+    let total: usize = map
+        .score_trailheads()
+        .iter()
+        .map(|scores| scores.values().sum::<usize>())
+        .sum();
+
+    total.to_string()
 }
 
 sample! {
@@ -70,5 +87,6 @@ sample! {
 32019012
 01329801
 10456732",
-    part1 = "36"
+    part1 = "36",
+    part2 = "81"
 }
