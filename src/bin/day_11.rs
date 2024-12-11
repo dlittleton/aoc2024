@@ -1,7 +1,9 @@
 use aoc2024::{input::get_all_numbers, sample};
+use cached::{proc_macro::cached, Cached};
+use tracing::info;
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 fn try_split_digits(value: usize) -> Option<(usize, usize)> {
@@ -14,28 +16,49 @@ fn try_split_digits(value: usize) -> Option<(usize, usize)> {
     }
 }
 
-fn expand_stones(stone: usize, depth: usize, target_depth: usize, acc: &mut Vec<usize>) {
+#[cached]
+fn expand_stones(stone: usize, depth: usize, target_depth: usize) -> usize {
     if depth == target_depth {
-        acc.push(stone);
+        1
     } else if stone == 0 {
-        expand_stones(1, depth + 1, target_depth, acc);
+        expand_stones(1, depth + 1, target_depth)
     } else if let Some((a, b)) = try_split_digits(stone) {
-        expand_stones(a, depth + 1, target_depth, acc);
-        expand_stones(b, depth + 1, target_depth, acc);
+        expand_stones(a, depth + 1, target_depth) + expand_stones(b, depth + 1, target_depth)
     } else {
-        expand_stones(stone * 2024, depth + 1, target_depth, acc);
+        expand_stones(stone * 2024, depth + 1, target_depth)
     }
 }
 
 fn part1(input: &str) -> String {
     let stones = get_all_numbers::<usize>(input);
-    let mut acc = Vec::new();
 
-    for stone in stones {
-        expand_stones(stone, 0, 25, &mut acc);
+    let total: usize = stones.iter().map(|s| expand_stones(*s, 0, 25)).sum();
+
+    if let Ok(expand_cache) = EXPAND_STONES.try_lock() {
+        info!("Cache size {}", expand_cache.cache_size());
+        info!(
+            "Cache hits {}",
+            expand_cache.cache_hits().unwrap_or_default()
+        );
     }
 
-    acc.len().to_string()
+    total.to_string()
+}
+
+fn part2(input: &str) -> String {
+    let stones = get_all_numbers::<usize>(input);
+
+    let total: usize = stones.iter().map(|s| expand_stones(*s, 0, 75)).sum();
+
+    if let Ok(expand_cache) = EXPAND_STONES.try_lock() {
+        info!("Cache size {}", expand_cache.cache_size());
+        info!(
+            "Cache hits {}",
+            expand_cache.cache_hits().unwrap_or_default()
+        );
+    }
+
+    total.to_string()
 }
 
 sample! {
