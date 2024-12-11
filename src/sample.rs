@@ -2,7 +2,7 @@
 macro_rules! sample {
     ($input:literal, $($p1:ident = $v1:literal),*) => {
         #[cfg(test)]
-        mod tests {
+        mod sample_tests {
 
             use super::*;
 
