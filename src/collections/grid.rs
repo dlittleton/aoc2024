@@ -158,6 +158,21 @@ impl<T> Grid<T> {
             _ => None,
         }
     }
+
+    pub fn positions(&self) -> impl Iterator<Item = Position<T>> {
+        self.enumerate().map(|(row, col, _)| Position {
+            row,
+            col,
+            grid: self,
+        })
+    }
+
+    pub fn map<U>(&self, map_fn: fn(&T) -> U) -> Grid<U> {
+        self.values
+            .iter()
+            .map(|row_values| row_values.iter().map(map_fn))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -295,5 +310,14 @@ mod tests {
         let pos = grid.position(row, col).unwrap();
         let neighbor = pos.get_neighbor(dir).unwrap();
         assert_eq!(value, *neighbor.value());
+    }
+
+    #[rstest]
+    fn test_map(grid: Grid<char>) {
+        let mapped = grid.map(|c| c.to_ascii_uppercase());
+
+        assert_eq!('A', *mapped.get(0, 0));
+        assert_eq!('B', *mapped.get(0, 1));
+        assert_eq!('E', *mapped.get(1, 1));
     }
 }
