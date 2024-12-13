@@ -51,7 +51,7 @@ impl Perimeters {
 
                 // Remove touching nodes in the same perimeter set
                 for search in Self::get_merge_directions(*dir) {
-                    let mut new = point.clone();
+                    let mut new = point;
                     let add = get_direction_delta(search);
 
                     loop {
