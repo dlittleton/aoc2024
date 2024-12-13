@@ -22,7 +22,7 @@ lazy_static! {
     ];
 }
 
-fn get_direction_delta(dir: Direction) -> (isize, isize) {
+pub fn get_direction_delta(dir: Direction) -> (isize, isize) {
     match dir {
         Direction::North => (-1, 0),
         Direction::East => (0, 1),

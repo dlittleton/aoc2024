@@ -1,5 +1,7 @@
+use std::collections::BTreeSet;
 use std::{char, collections::HashMap};
 
+use aoc2024::collections::grid::{get_direction_delta, Direction};
 use aoc2024::{
     collections::grid::{Grid, Position, CARDINAL_DIRECTIONS},
     sample,
@@ -7,12 +9,64 @@ use aoc2024::{
 use tracing::info;
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 struct Plot {
     plant: char,
     id: usize,
+}
+
+type Point = (isize, isize);
+
+#[derive(Default)]
+struct Perimeters {
+    nodes: BTreeSet<Point>,
+    perimeters: [BTreeSet<Point>; 4],
+}
+
+impl Perimeters {
+    fn add(&mut self, pos: &Position<Plot>, dir: Direction) {
+        let p = (pos.row() as isize, pos.col() as isize);
+        self.nodes.insert(p);
+        self.perimeters[dir as usize].insert(p);
+    }
+
+    fn get_merge_directions(dir: Direction) -> Vec<Direction> {
+        match dir {
+            Direction::North | Direction::South => vec![Direction::East, Direction::West],
+            Direction::East | Direction::West => vec![Direction::North, Direction::South],
+        }
+    }
+
+    fn combine_sides(&mut self) -> usize {
+        let mut sides = 0;
+
+        for dir in CARDINAL_DIRECTIONS.iter() {
+            let perims = &mut self.perimeters[*dir as usize];
+
+            while let Some(point) = perims.pop_first() {
+                // New side.
+                sides += 1;
+
+                // Remove touching nodes in the same perimeter set
+                for search in Self::get_merge_directions(*dir) {
+                    let mut new = point.clone();
+                    let add = get_direction_delta(search);
+
+                    loop {
+                        new = (new.0 + add.0, new.1 + add.1);
+
+                        if !perims.remove(&new) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        sides
+    }
 }
 
 struct Garden {
@@ -78,11 +132,50 @@ impl Garden {
 
         total
     }
+
+    fn score_sides(&self) -> usize {
+        let mut size: HashMap<usize, usize> = HashMap::new();
+        let mut perimeters: HashMap<usize, Perimeters> = HashMap::new();
+
+        for pos in self.plots.positions() {
+            let perim = perimeters.entry(pos.value().id).or_default();
+            for dir in CARDINAL_DIRECTIONS.iter() {
+                if let Some(neighbor) = pos.get_neighbor(*dir) {
+                    if pos.value().plant != neighbor.value().plant {
+                        perim.add(&pos, *dir);
+                    }
+                } else {
+                    perim.add(&pos, *dir);
+                }
+            }
+
+            *size.entry(pos.value().id).or_default() += 1;
+        }
+
+        let mut total = 0;
+        for (k, v) in size {
+            let perim = perimeters.get_mut(&k).unwrap();
+            let sides = perim.combine_sides();
+
+            let cost = v * sides;
+
+            info! {"Region {} => Size {} * Sides {} = {}", k, v, sides, cost}
+            total += cost;
+        }
+
+        total
+    }
 }
 
 fn part1(input: &str) -> String {
     let g = Garden::parse(input);
     let price = g.score();
+    price.to_string()
+}
+
+fn part2(input: &str) -> String {
+    let g = Garden::parse(input);
+    let price = g.score_sides();
     price.to_string()
 }
 
@@ -98,5 +191,35 @@ VVIIICJJEE
 MIIIIIJJEE
 MIIISIJEEE
 MMMISSJEEE",
-    part1 = "1930"
+    part1 = "1930",
+    part2 = "1206"
+}
+
+mod sample2 {
+    use super::*;
+
+    sample! {
+        r"
+AAAAAA
+AAABBA
+AAABBA
+ABBAAA
+ABBAAA
+AAAAAA",
+        part2 = "368"
+    }
+}
+
+mod sample3 {
+    use super::*;
+
+    sample! {
+        r"
+EEEEE
+EXXXX
+EEEEE
+EXXXX
+EEEEE",
+        part2 = "236"
+    }
 }
