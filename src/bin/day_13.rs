@@ -1,8 +1,9 @@
 use aoc2024::{input::get_all_numbers, sample};
-use tracing::{debug, info};
+use num::Integer;
+use tracing::info;
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 type Point = (isize, isize);
@@ -31,36 +32,31 @@ impl ClawMachine {
         (nums[0], nums[1])
     }
 
-    fn find_cost(&self) -> isize {
-        const MAX_PRESSES: isize = 101;
-
+    fn find_cost(&self) -> Option<isize> {
         let (ax, ay) = self.a;
         let (bx, by) = self.b;
         let (tx, ty) = self.target;
 
-        let mut solutions = Vec::new();
+        let m = ax.lcm(&ay);
+        let mx = m / ax;
+        let my = m / ay;
 
-        for ap in 0..MAX_PRESSES {
-            let (x, y) = (ax * ap, ay * ap);
+        let bxm = bx * mx;
+        let bym = by * my;
 
-            if x > tx || y > ty {
-                break;
-            }
+        let txm = tx * mx;
+        let tym = ty * my;
 
-            for bp in 0..MAX_PRESSES {
-                let (x, y) = (x + (bx * bp), y + (by * bp));
+        let (b, brem) = (tym - txm).div_rem(&(bym - bxm));
+        let (a, arem) = (tx - (b * bx)).div_rem(&ax);
 
-                if x == tx && y == ty {
-                    solutions.push((ap, bp));
-                } else if x > tx || y > ty {
-                    break;
-                }
-            }
+        if brem == 0 && arem == 0 {
+            info!("Found solution at A={}, B={}", a, b);
+            Some(a * 3 + b)
+        } else {
+            info!("No solution!");
+            None
         }
-
-        info!("Found {} solutions.", solutions.len());
-
-        solutions.iter().map(|(a, b)| a * 3 + b).min().unwrap_or(0)
     }
 }
 
@@ -76,9 +72,30 @@ fn part1(input: &str) -> String {
         }
     }
 
-    debug!("Machines {:?}", machines);
+    let total: isize = machines.iter().filter_map(|m| m.find_cost()).sum();
 
-    let total: isize = machines.iter().map(|m| m.find_cost()).sum();
+    total.to_string()
+}
+
+fn part2(input: &str) -> String {
+    let mut lines = input.split('\n');
+    let mut machines = Vec::new();
+
+    const SHIFT: isize = 10000000000000;
+
+    loop {
+        machines.push(ClawMachine::parse(lines.by_ref()));
+
+        if lines.next().is_none() {
+            break;
+        }
+    }
+
+    for m in machines.iter_mut() {
+        m.target = (m.target.0 + SHIFT, m.target.1 + SHIFT);
+    }
+
+    let total: isize = machines.iter().filter_map(|m| m.find_cost()).sum();
 
     total.to_string()
 }
@@ -100,5 +117,6 @@ Prize: X=7870, Y=6450
 Button A: X+69, Y+23
 Button B: X+27, Y+71
 Prize: X=18641, Y=10279",
-    part1 = "480"
+    part1 = "480",
+    part2 = "875318608908"
 }
