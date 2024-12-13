@@ -37,7 +37,7 @@ pub struct Position<'a, T> {
     grid: &'a Grid<T>,
 }
 
-impl<T> Position<'_, T> {
+impl<'a, T> Position<'a, T> {
     pub fn row(&self) -> usize {
         self.row
     }
@@ -54,6 +54,13 @@ impl<T> Position<'_, T> {
         let (dr, dc) = get_direction_delta(dir);
         self.grid
             .position(self.row as isize + dr, self.col as isize + dc)
+    }
+
+    pub fn get_neighbors(
+        &self,
+        dirs: &'static [Direction],
+    ) -> impl Iterator<Item = Self> + use<'a, '_, T> {
+        dirs.iter().filter_map(|d| self.get_neighbor(*d))
     }
 }
 
