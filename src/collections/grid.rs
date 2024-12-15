@@ -5,7 +5,7 @@ pub struct Grid<T> {
     values: Vec<Vec<T>>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum Direction {
     North,
     East,
@@ -61,6 +61,12 @@ impl<'a, T> Position<'a, T> {
         dirs: &'static [Direction],
     ) -> impl Iterator<Item = Self> + use<'a, '_, T> {
         dirs.iter().filter_map(|d| self.get_neighbor(*d))
+    }
+}
+
+impl<T> From<Position<'_, T>> for (usize, usize) {
+    fn from(val: Position<'_, T>) -> Self {
+        (val.row, val.col)
     }
 }
 
