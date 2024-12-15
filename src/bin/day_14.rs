@@ -202,6 +202,6 @@ mod wrapped_sample_test {
     p=7,3 v=-1,2
     p=2,4 v=2,-3
     p=9,5 v=-3,-3",
-        part1_test_size = "12",
+        part1_test_size = "12"
     }
 }
