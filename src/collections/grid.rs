@@ -31,6 +31,7 @@ pub fn get_direction_delta(dir: Direction) -> (isize, isize) {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Position<'a, T> {
     row: usize,
     col: usize,
