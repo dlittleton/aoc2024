@@ -7,7 +7,7 @@ use aoc2024::{
 use tracing::{debug, info};
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 fn search(grid: &Grid<char>) -> usize {
@@ -56,8 +56,34 @@ fn solve(input: &str, width: usize, height: usize, depth: usize) -> String {
     search(&g).to_string()
 }
 
+fn solve2(input: &str, width: usize, height: usize, depth: usize) -> String {
+    let mut g = Grid::new(height, width, '.');
+
+    let mut lines = input.lines();
+
+    // Initial conditions
+    for line in lines.by_ref().take(depth) {
+        let nums = get_all_numbers::<usize>(line);
+        *g.get_mut(nums[1], nums[0]) = '#';
+    }
+
+    loop {
+        let next = lines.next().unwrap();
+        let nums = get_all_numbers::<usize>(next);
+        *g.get_mut(nums[1], nums[0]) = '#';
+
+        if search(&g) == 0 {
+            return next.to_string();
+        }
+    }
+}
+
 fn part1(input: &str) -> String {
     solve(input, 71, 71, 1024)
+}
+
+fn part2(input: &str) -> String {
+    solve2(input, 71, 71, 1024)
 }
 
 #[cfg(test)]
@@ -68,6 +94,10 @@ mod test {
 
     fn test_part1(input: &str) -> String {
         solve(input, 7, 7, 12)
+    }
+
+    fn test_part2(input: &str) -> String {
+        solve2(input, 7, 7, 12)
     }
 
     sample! {
@@ -97,6 +127,7 @@ mod test {
 0,5
 1,6
 2,0",
-        test_part1 = "22"
+        test_part1 = "22",
+        test_part2 = "6,1"
     }
 }
