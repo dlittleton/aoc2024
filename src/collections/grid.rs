@@ -1,3 +1,5 @@
+use std::iter::repeat_n;
+
 use lazy_static::lazy_static;
 
 #[derive(Debug, Clone)]
@@ -87,6 +89,15 @@ where
         }
 
         Grid { values }
+    }
+}
+
+impl<T> Grid<T>
+where
+    T: Copy,
+{
+    pub fn new(rows: usize, cols: usize, init: T) -> Self {
+        (0..rows).map(|_| repeat_n(init, cols)).collect()
     }
 }
 
@@ -333,5 +344,13 @@ mod tests {
         assert_eq!('A', *mapped.get(0, 0));
         assert_eq!('B', *mapped.get(0, 1));
         assert_eq!('E', *mapped.get(1, 1));
+    }
+
+    #[rstest]
+    fn test_new_grid() {
+        let g = Grid::new(3usize, 4usize, '.');
+        assert_eq!(3, g.rows());
+        assert_eq!(4, g.cols());
+        assert_eq!('.', *g.get(0, 0));
     }
 }
