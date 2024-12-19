@@ -3,7 +3,7 @@ use cached::proc_macro::cached;
 use tracing::debug;
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 struct Towels {
@@ -12,18 +12,19 @@ struct Towels {
 }
 
 #[cached(key = "String", convert = r#"{ String::from(target) }"#)]
-fn try_match_pattern(available: &Vec<String>, target: &str) -> bool {
+fn try_match_pattern(available: &Vec<String>, target: &str) -> usize {
     if target.is_empty() {
-        return true;
+        return 1;
     }
 
+    let mut total = 0;
     for a in available {
-        if target.starts_with(a) && try_match_pattern(available, &target[a.len()..]) {
-            return true;
+        if target.starts_with(a) {
+            total += try_match_pattern(available, &target[a.len()..]);
         }
     }
 
-    false
+    total
 }
 
 impl Towels {
@@ -47,17 +48,30 @@ impl Towels {
         Self { available, targets }
     }
 
-    fn count_possible(&mut self) -> usize {
+    fn count_possible(&self) -> usize {
         self.targets
             .iter()
-            .filter(|t| try_match_pattern(&self.available, t))
+            .filter(|t| try_match_pattern(&self.available, t) > 0)
             .count()
+    }
+
+    fn count_permutations(&self) -> usize {
+        self.targets
+            .iter()
+            .map(|t| try_match_pattern(&self.available, t))
+            .sum()
     }
 }
 
 fn part1(input: &str) -> String {
-    let mut towels = Towels::parse(input);
+    let towels = Towels::parse(input);
     let count = towels.count_possible();
+    count.to_string()
+}
+
+fn part2(input: &str) -> String {
+    let towels = Towels::parse(input);
+    let count = towels.count_permutations();
     count.to_string()
 }
 
@@ -73,5 +87,6 @@ ubwu
 bwurrg
 brgr
 bbrgwb",
-    part1 = "6"
+    part1 = "6",
+    part2 = "16"
 }
