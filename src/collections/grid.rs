@@ -101,6 +101,18 @@ where
     }
 }
 
+impl<T> Grid<T>
+where
+    T: Eq,
+{
+    pub fn find(&self, value: &T) -> Option<Position<T>> {
+        self.enumerate().find_map(|(r, c, v)| match v {
+            t if t == value => self.position(r, c),
+            _ => None,
+        })
+    }
+}
+
 impl<T> Grid<T> {
     pub fn get(&self, row: usize, col: usize) -> &T {
         &self.values[row][col]
@@ -352,5 +364,19 @@ mod tests {
         assert_eq!(3, g.rows());
         assert_eq!(4, g.cols());
         assert_eq!('.', *g.get(0, 0));
+    }
+
+    #[rstest]
+    fn test_grid_find_returns_some_when_found(grid: Grid<char>) {
+        let pos_a = grid.find(&'a');
+        assert!(pos_a.is_some());
+        assert_eq!(0, pos_a.unwrap().row());
+        assert_eq!(0, pos_a.unwrap().col());
+    }
+
+    #[rstest]
+    fn test_grid_find_returns_none_when_not_found(grid: Grid<char>) {
+        let pos_a = grid.find(&'z');
+        assert!(pos_a.is_none());
     }
 }
