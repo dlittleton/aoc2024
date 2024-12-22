@@ -7,7 +7,7 @@ pub struct Grid<T> {
     values: Vec<Vec<T>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     North,
     East,
