@@ -5,12 +5,13 @@ use aoc2024::{
     input::get_all_numbers,
     sample,
 };
+use cached::proc_macro::cached;
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use tracing::info;
+use tracing::{debug, info};
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 const NUMERIC_KEYPAD: &str = r"
@@ -95,89 +96,98 @@ fn to_move_string(path: &Vec<Direction>) -> String {
     result
 }
 
-fn expand(moves: String, depth: usize) -> String {
+#[cached]
+fn expand(moves: String, depth: usize) -> usize {
     if depth == 0 {
-        return moves;
+        return moves.len();
     }
 
-    let mut result = String::new();
+    let mut length = 0;
 
     let mut last_char = 'A';
     for c in moves.chars() {
-        result.push_str(&get_shortest_dir_path(last_char, c, depth));
+        length += get_shortest_dir_path(last_char, c, depth);
         last_char = c;
     }
 
-    result
+    length
 }
 
-fn get_shortest_dir_path(start: char, end: char, depth: usize) -> String {
-    info!("Looking from {} to {}", start, end);
+#[cached]
+fn get_shortest_dir_path(start: char, end: char, depth: usize) -> usize {
+    debug!("Looking from {} to {}", start, end);
     let (r, c) = DIRECTIONAL_POSITIONS.get(&start).unwrap();
     let (r_end, c_end) = DIRECTIONAL_POSITIONS.get(&end).unwrap();
 
     let start_pos = DIRECTIONAL_GRID.position(*r, *c).unwrap();
 
-    let mut moves = Vec::new();
+    let mut result = Vec::new();
     let paths = get_paths(*r, *c, *r_end, *c_end);
     for m in paths.iter().copied().permutations(paths.len()).unique() {
-        info!("Possible path {:?}", m);
+        debug!("Possible path {:?}", m);
         if !is_valid_path(start_pos, &m) {
             continue;
         }
 
         let move_string = to_move_string(&m);
-        moves.push(expand(move_string, depth - 1));
+        result.push(expand(move_string, depth - 1));
     }
 
-    moves
-        .iter()
-        .min_by(|a, b| a.len().cmp(&b.len()))
-        .unwrap()
-        .clone()
+    *result.iter().min().unwrap()
 }
 
-fn get_shortest_path(start: char, end: char) -> String {
+fn get_shortest_path(start: char, end: char, initial_depth: usize) -> usize {
     info!("Looking from {} to {}", start, end);
     let (r, c) = NUMERIC_POSITIONS.get(&start).unwrap();
     let (r_end, c_end) = NUMERIC_POSITIONS.get(&end).unwrap();
 
     let start_pos = NUMERIC_GRID.position(*r, *c).unwrap();
 
-    let mut moves = Vec::new();
+    let mut result = Vec::new();
     let paths = get_paths(*r, *c, *r_end, *c_end);
     for m in paths.iter().copied().permutations(paths.len()).unique() {
-        info!("Possible path {:?}", m);
+        debug!("Possible path {:?}", m);
         if !is_valid_path(start_pos, &m) {
             continue;
         }
 
         let move_string = to_move_string(&m);
-        moves.push(expand(move_string, 2));
+        result.push(expand(move_string, initial_depth));
     }
 
-    moves
-        .iter()
-        .min_by(|a, b| a.len().cmp(&b.len()))
-        .unwrap()
-        .clone()
+    *result.iter().min().unwrap()
 }
 
-fn solve(line: &str) -> (usize, usize) {
+fn solve(line: &str, initial_depth: usize) -> (usize, usize) {
     let numeric_value = *get_all_numbers::<usize>(line).first().unwrap();
 
-    let mut result = String::new();
+    let mut total = 0;
     let mut last_char = 'A';
     for c in line.chars() {
-        result.push_str(&get_shortest_path(last_char, c));
+        total += get_shortest_path(last_char, c, initial_depth);
         last_char = c;
     }
 
-    (numeric_value, result.len())
+    (numeric_value, total)
 }
 
 fn part1(input: &str) -> String {
-    let result: Vec<_> = input.lines().map(solve).map(|(n, l)| n * l).collect();
+    let result: Vec<_> = input
+        .lines()
+        .map(|l| solve(l, 2))
+        .map(|(n, l)| n * l)
+        .collect();
+
+    let total: usize = result.iter().sum();
+    total.to_string()
+}
+
+fn part2(input: &str) -> String {
+    let result: Vec<_> = input
+        .lines()
+        .map(|l| solve(l, 25))
+        .map(|(n, l)| n * l)
+        .collect();
 
     let total: usize = result.iter().sum();
     total.to_string()
@@ -206,7 +216,7 @@ mod tests {
     #[case("456A", 456, 64)]
     #[case("379A", 379, 64)]
     fn test_expansion(#[case] input: &str, #[case] numeric: usize, #[case] length: usize) {
-        let (n, l) = solve(input);
+        let (n, l) = solve(input, 2);
         assert_eq!(numeric, n);
         assert_eq!(length, l);
     }
