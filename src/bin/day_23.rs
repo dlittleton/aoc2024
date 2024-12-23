@@ -5,7 +5,7 @@ use itertools::Itertools;
 use tracing::debug;
 
 fn main() {
-    aoc2024::run(part1, None);
+    aoc2024::run(part1, Some(part2));
 }
 
 type NetworkGroup<'a> = BTreeSet<BTreeSet<&'a str>>;
@@ -96,6 +96,27 @@ fn part1(input: &str) -> String {
     target_groups.to_string()
 }
 
+fn part2(input: &str) -> String {
+    let mut network = Network::new();
+    for connection in input.lines() {
+        network.add_connection(connection);
+    }
+
+    let groups = network.find_groups();
+    let longest = groups
+        .iter()
+        .max_by_key(|g| g.len())
+        .map(|g| {
+            let mut nodes = Vec::from_iter(g);
+            nodes.sort();
+            nodes
+        })
+        .unwrap();
+
+    let password = longest.into_iter().join(",");
+    password.to_string()
+}
+
 sample! {
     r"
 kh-tc
@@ -130,5 +151,6 @@ co-tc
 wh-qp
 tb-vc
 td-yn",
-    part1 = "7"
+    part1 = "7",
+    part2 = "co,de,ka,ta"
 }
