@@ -1,16 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
-use rayon::prelude::*;
-
 use aoc2024::{input::get_all_numbers, sample};
-use itertools::Itertools;
 use tracing::{debug, info};
 
 fn main() {
     aoc2024::run(part1, Some(part2));
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Operation {
     And,
     Or,
@@ -130,29 +127,43 @@ impl<'a> Device<'a> {
         }
     }
 
-    fn get_node_value(&self, input: Input<'a>) -> u64 {
+    fn get_node_value(&self, input: Input<'a>, depth: usize) -> Option<u64> {
+        // Arbitrary cutoff to avoid a loop.
+        if depth > 100 {
+            return None;
+        }
+
         match input {
-            Input::Direct('x', idx) => (self.x >> idx) & 1,
-            Input::Direct('y', idx) => (self.y >> idx) & 1,
+            Input::Direct('x', idx) => Some((self.x >> idx) & 1),
+            Input::Direct('y', idx) => Some((self.y >> idx) & 1),
             Input::Intermediate(key) => {
                 let node = self.nodes.get(key).unwrap();
 
-                let a = self.get_node_value(node.a);
-                let b = self.get_node_value(node.b);
+                let a = self.get_node_value(node.a, depth + 1);
+                let b = self.get_node_value(node.b, depth + 1);
 
-                node.op.evaluate(a, b)
+                match (a, b) {
+                    (Some(a), Some(b)) => Some(node.op.evaluate(a, b)),
+                    _ => None,
+                }
             }
             _ => panic!("Unexpected input!"),
         }
     }
 
-    fn get_output(&self) -> u64 {
+    fn get_output(&self) -> Option<u64> {
         let mut acc = 0;
         for k in self.output_keys.iter() {
             acc <<= 1;
-            acc |= self.get_node_value(Input::Intermediate(k));
+
+            if let Some(val) = self.get_node_value(Input::Intermediate(k), 0) {
+                acc |= val;
+            } else {
+                return None;
+            }
         }
-        acc
+
+        Some(acc)
     }
 
     fn swap(&mut self, n1: &'a str, n2: &'a str) {
@@ -165,82 +176,148 @@ impl<'a> Device<'a> {
         self.x = x;
         self.y = y;
     }
+
+    fn get_children(&self, bit: u64) -> HashSet<&'a str> {
+        let name = format!("z{:02}", bit);
+        let mut to_visit = vec![name.as_str()];
+
+        let mut result = HashSet::new();
+
+        while let Some(n) = to_visit.pop() {
+            let (k, v) = self.nodes.get_key_value(n).unwrap();
+            result.insert(*k);
+
+            if let Input::Intermediate(key) = v.a {
+                to_visit.push(key);
+            }
+
+            if let Input::Intermediate(key) = v.b {
+                to_visit.push(key);
+            }
+        }
+
+        result
+    }
 }
 
-fn solve2(input: &str, swaps: usize, combine: fn(u64, u64) -> u64) -> String {
-    let device = Device::parse(input);
+struct Solver<'a> {
+    _swaps: usize, // Ended up not needing to know the swap count ahead of time
+    device: Device<'a>,
+    swappable: HashSet<&'a str>,
+    swapped_nodes: Vec<&'a str>,
+}
 
-    let max = (1 << (device.input_bits + 1)) - 1;
+impl<'a> Solver<'a> {
+    fn new(swaps: usize, device: Device<'a>) -> Self {
+        let swappable = device.nodes.keys().copied().collect();
+        let swapped_nodes = Vec::new();
 
-    let mut test_cases = vec![(0, 0), (max, max)];
-    for i in 0..device.input_bits {
-        let val = 1 << i;
-        test_cases.push((val, val));
-        test_cases.push((val, 0));
-        test_cases.push((0, val));
+        Self {
+            _swaps: swaps,
+            device,
+            swappable,
+            swapped_nodes,
+        }
     }
 
-    let nodes: Vec<_> = device.nodes.keys().copied().collect();
-    let pairs: Vec<(&str, &str)> = nodes.iter().copied().tuple_combinations().collect();
+    fn check_bit(bit: u64, device: &mut Device<'a>) -> bool {
+        let prev = 1 << (bit - 1);
+        let value = 1 << bit;
+        let both = prev + value;
+        let cases = [
+            (value, 0),
+            (value, value),
+            (prev, prev),
+            (prev, both),
+            (both, both),
+        ];
 
-    let result: Vec<_> = pairs
-        .iter()
-        .combinations(swaps)
-        .par_bridge()
-        .filter(|swapset| {
-            let mut cloned_device = device.clone();
-
-            let mut seen = HashSet::new();
-            for (n1, n2) in swapset {
-                if seen.contains(n1) || seen.contains(n2) {
-                    debug!("Skipping swapset due to duplicate node: {:?}", swapset);
+        for (x, y) in cases {
+            device.set_inputs(x, y);
+            let target = x + y;
+            if let Some(actual) = device.get_output() {
+                if target != actual {
+                    debug!("Problem detected at bit {}", bit);
+                    debug!("\t{} + {} != {}. Actual value: {}", x, y, target, actual);
                     return false;
                 }
-                cloned_device.swap(n1, n2);
-                seen.insert(n1);
-                seen.insert(n2);
+            } else {
+                return false;
             }
+        }
 
-            let result = test_cases.iter().all(|(x, y)| {
-                let expected = combine(*x, *y);
-                cloned_device.set_inputs(*x, *y);
-
-                let actual = cloned_device.get_output();
-                expected == actual
-            });
-
-            if result {
-                info!("Found potential solution. {:?}", swapset);
-            }
-
-            result
-        })
-        .collect();
-
-    if result.len() != 1 {
-        panic!("Bad result count. {:?}", result);
+        true
     }
 
-    let mut nodes = Vec::new();
-    let swaps = result.first().unwrap();
-    for (n1, n2) in swaps {
-        nodes.push(n1);
-        nodes.push(n2);
+    fn mark_children_safe(&mut self, bit: u64) {
+        for child in self.device.get_children(bit) {
+            self.swappable.remove(child);
+        }
     }
 
-    nodes.sort();
-    nodes.iter().join(",")
+    fn find_swap(&mut self, bit: u64) {
+        let mut children = self.device.get_children(bit);
+        children.retain(|t| self.swappable.contains(t));
+
+        info!("Potentially swappable children: {:?}", children);
+
+        let temp_swappable = self.swappable.clone();
+
+        for c in children {
+            for other in temp_swappable.iter() {
+                if c == *other {
+                    continue;
+                }
+
+                let mut cloned_device = self.device.clone();
+                cloned_device.swap(c, other);
+
+                if Self::check_bit(bit, &mut cloned_device) {
+                    info!("Swapping {} and {} works!", c, other);
+
+                    self.swapped_nodes.push(c);
+                    self.swapped_nodes.push(other);
+                    self.swappable.remove(c);
+                    self.swappable.remove(other);
+                    self.device = cloned_device;
+                    return;
+                }
+            }
+        }
+
+        info!("Done finding swap?");
+    }
+
+    fn run(&mut self) {
+        for bit in 1..self.device.input_bits {
+            if Self::check_bit(bit, &mut self.device.clone()) {
+                self.mark_children_safe(bit);
+            } else {
+                info!("Stopping at {}", bit);
+                self.find_swap(bit);
+            }
+        }
+    }
+}
+
+fn solve2(input: &str, swaps: usize) -> String {
+    let device = Device::parse(input);
+    let mut solver = Solver::new(swaps, device);
+    solver.run();
+
+    solver.swapped_nodes.sort();
+    solver.swapped_nodes.join(",")
 }
 
 fn part1(input: &str) -> String {
     let device = Device::parse(input);
     let value = device.get_output();
 
-    value.to_string()
+    value.unwrap().to_string()
 }
 
 fn part2(input: &str) -> String {
-    solve2(input, 4, |a, b| a + b)
+    solve2(input, 4)
 }
 
 sample! {
@@ -293,37 +370,4 @@ hwm AND bqk -> z03
 tgd XOR rvg -> z12
 tnw OR pbm -> gnj",
     part1 = "2024"
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    fn test_part2(input: &str) -> String {
-        solve2(input, 2, |a, b| a & b)
-    }
-
-    sample! {
-        r"
-x00: 0
-x01: 1
-x02: 0
-x03: 1
-x04: 0
-x05: 1
-y00: 0
-y01: 0
-y02: 1
-y03: 1
-y04: 0
-y05: 1
-
-x00 AND y00 -> z05
-x01 AND y01 -> z02
-x02 AND y02 -> z01
-x03 AND y03 -> z03
-x04 AND y04 -> z04
-x05 AND y05 -> z00",
-        test_part2 = "z00,z01,z02,z05"
-    }
 }
