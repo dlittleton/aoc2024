@@ -1,52 +1,105 @@
 use std::collections::HashMap;
 
-use aoc2024::sample;
-use tracing::info;
+use aoc2024::{input::get_all_numbers, sample};
 
 fn main() {
     aoc2024::run(part1, None);
 }
 
 #[derive(Clone, Copy)]
+enum Operation {
+    And,
+    Or,
+    Xor,
+}
+
+impl Operation {
+    fn evaluate(&self, a: u64, b: u64) -> u64 {
+        match self {
+            Operation::And => a & b,
+            Operation::Or => a | b,
+            Operation::Xor => a ^ b,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Input<'a> {
+    Direct(char, usize),
+    Intermediate(&'a str),
+}
+
+#[derive(Clone, Copy)]
 struct Node<'a> {
-    a: &'a str,
-    b: &'a str,
-    op: &'a str,
+    a: Input<'a>,
+    b: Input<'a>,
+    op: Operation,
 }
 
 struct Device<'a> {
-    cache: HashMap<&'a str, u64>,
+    x: u64,
+    y: u64,
     nodes: HashMap<&'a str, Node<'a>>,
+    output_keys: Vec<&'a str>,
 }
 
 impl<'a> Device<'a> {
     fn parse(input: &'a str) -> Self {
         let mut lines = input.lines();
 
-        let init = lines
+        let mut x = 0;
+        let mut y = 0;
+
+        for (c, shift, value) in lines
             .by_ref()
             .take_while(|l| !l.is_empty())
             .map(Self::parse_initial)
+        {
+            match c {
+                'x' => x |= value << shift,
+                'y' => y |= value << shift,
+                x => panic!("Unexpected initial state: {}", x),
+            }
+        }
+
+        let nodes: HashMap<&'a str, Node<'a>> = lines.map(Self::parse_node).collect();
+
+        let mut output_keys: Vec<&'a str> = nodes
+            .keys()
+            .filter(|k| k.starts_with('z'))
+            .copied()
             .collect();
 
-        let nodes = lines.map(Self::parse_node).collect();
+        output_keys.sort();
+        output_keys.reverse();
 
-        Self { cache: init, nodes }
+        Self {
+            x,
+            y,
+            nodes,
+            output_keys,
+        }
     }
 
-    fn parse_initial(input: &'a str) -> (&'a str, u64) {
-        let mut values = input.split(": ");
-        let name = values.next().unwrap();
-        let value = values.next().unwrap().parse::<u64>().unwrap();
+    fn parse_initial(input: &'a str) -> (char, u64, u64) {
+        let c = input.chars().next().unwrap();
+        let nums = get_all_numbers::<u64>(input);
 
-        (name, value)
+        (c, nums[0], nums[1])
     }
 
     fn parse_node(input: &'a str) -> (&'a str, Node<'a>) {
         let mut values = input.split_whitespace();
-        let a = values.next().unwrap();
-        let op = values.next().unwrap();
-        let b = values.next().unwrap();
+        let a = Self::parse_input(values.next().unwrap());
+        let op_name = values.next().unwrap();
+        let b = Self::parse_input(values.next().unwrap());
+
+        let op = match op_name {
+            "AND" => Operation::And,
+            "OR" => Operation::Or,
+            "XOR" => Operation::Xor,
+            x => panic!("Unsupported operation: {}", x),
+        };
 
         // Don't need the arrow.
         values.next();
@@ -56,58 +109,46 @@ impl<'a> Device<'a> {
         (target, Node { a, b, op })
     }
 
-    fn get_state(&mut self, name: &'a str) -> u64 {
-        if let Some(cached) = self.cache.get(name) {
-            return *cached;
+    fn parse_input(input: &'a str) -> Input<'a> {
+        let nums = get_all_numbers::<usize>(input);
+        if input.starts_with('x') {
+            Input::Direct('x', *nums.first().unwrap())
+        } else if input.starts_with('y') {
+            Input::Direct('y', *nums.first().unwrap())
+        } else {
+            Input::Intermediate(input)
         }
-
-        let node = *self.nodes.get(name).unwrap();
-
-        let aval = self.get_state(node.a);
-        let bval = self.get_state(node.b);
-
-        let result = match node.op {
-            "AND" => aval & bval,
-            "OR" => aval | bval,
-            "XOR" => aval ^ bval,
-            x => panic!("Unrecognized operation: {}", x),
-        };
-
-        self.cache.insert(name, result);
-        result
     }
 
-    fn get_value(&mut self, symbol: char) -> u64 {
-        let mut bits = Vec::new();
+    fn get_node_value(&self, input: Input<'a>) -> u64 {
+        match input {
+            Input::Direct('x', idx) => (self.x >> idx) & 1,
+            Input::Direct('y', idx) => (self.y >> idx) & 1,
+            Input::Intermediate(key) => {
+                let node = self.nodes.get(key).unwrap();
 
-        self.cache
-            .keys()
-            .filter(|k| k.starts_with(symbol))
-            .for_each(|k| bits.push(*k));
+                let a = self.get_node_value(node.a);
+                let b = self.get_node_value(node.b);
 
-        self.nodes
-            .keys()
-            .filter(|k| k.starts_with(symbol))
-            .for_each(|k| bits.push(*k));
-
-        bits.sort();
-        bits.dedup();
-        bits.reverse();
-        info!("Bits are {:?}", bits);
-
-        let mut acc = 0;
-        for bit in bits {
-            acc <<= 1;
-            acc |= self.get_state(bit);
+                node.op.evaluate(a, b)
+            }
+            _ => panic!("Unexpected input!"),
         }
+    }
 
+    fn get_output(&self) -> u64 {
+        let mut acc = 0;
+        for k in self.output_keys.iter() {
+            acc <<= 1;
+            acc |= self.get_node_value(Input::Intermediate(k));
+        }
         acc
     }
 }
 
 fn part1(input: &str) -> String {
-    let mut device = Device::parse(input);
-    let value = device.get_value('z');
+    let device = Device::parse(input);
+    let value = device.get_output();
 
     value.to_string()
 }
